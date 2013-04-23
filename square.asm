@@ -56,6 +56,7 @@ prompt_text_remainder:
 
 # tells syscall what to do
 WRITE_STRING = 4
+READ_INT = 5
 EXIT_PROGRAM = 10
 
 # board info
@@ -186,18 +187,22 @@ print_prompt_done:
 #	$t0	Counter to print 3 boards
 #	$t1	Board max counter
 #	$t2	Turn counter (0 = X, 1 = 0)
+#	$t3	Used to flip turn counter
+#	$t4	If input equals this, skip turn
+#	$t5	If input equals this, quit
 #
 main:
 	add	$t0, $0, $0
 	addi	$t1, $0, 3
 	add	$t2, $0, $0
 	addi	$t3, $0, 1
+	addi	$t4, $0, -1
+	addi	$t5, $0, -2
 
 	la	$a0, intro_string	# Loads and prints intro string
 	jal	print_string
 
 play:
-	beq	$t0, $t1, exit_program
 	jal	print_board		# Print the board
 	addi	$t0, $t0, 1
 	la	$a0, newline		# Print a separating newline
@@ -205,7 +210,16 @@ play:
 	
 	add	$a0, $0, $t2		# Print prompt for user turn
 	jal	print_prompt
-	xor	$t2, $t2, $t3
+
+	li	$v0, READ_INT		# Tells system to get user input
+	syscall				# Reads int into v0
+
+	beq	$v0, $t4, turn_over	# If input == -1 skip turn
+	beq	$v0, $t5, exit_program	# If input == -2 quit
+
+
+turn_over:
+	xor	$t2, $t2, $t3		# Change player turn
 	j play
 
 exit_program:
