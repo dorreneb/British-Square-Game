@@ -47,7 +47,7 @@ WRITE_STRING = 4
 EXIT_PROGRAM = 10
 
 # board info
-NUM_CELLS = 25
+NUM_ROWS = 5
 CELLS_PER_ROW = 5
 
 #
@@ -59,7 +59,8 @@ CELLS_PER_ROW = 5
 
 #
 # Prints out a string, the pointer to which is saved in $a0.
-# Arguments:	$a0:	A pointer to the string that should be printed.
+# Arguments:
+# 	$a0:	A pointer to the string that should be printed.
 #
 print_string:
 	li	$v0, WRITE_STRING	# Tells system to write
@@ -71,8 +72,8 @@ print_string:
 # http://www.cs.rit.edu/~vcss345/project/123/proj123.html
 #
 # Variables Used:
-#	$t0	Cell index counter
-#	$t1	Cell total comparator. Always equal to NUM_CELLS.
+#	$t0	Row counter
+#	$t1	Row total comparator. Always equal to NUM_ROWS.
 #	$t2	Used to count index into row
 #	$t3	Row index comparator. Always equal to CELLS_PER_ROW.
 #
@@ -85,8 +86,8 @@ print_board:
 	sw	$t2, 12($sp)
 	sw	$t3, 16($sp)
 
-	add	$t0, $0, $0		# Initialize cell index counter
-	addi	$t1, $0, NUM_CELLS	# Save num cell max
+	add	$t0, $0, $0		# Initialize row index counter
+	addi	$t1, $0, NUM_ROWS	# Save number of rows to print
 	addi	$t3, $0, CELLS_PER_ROW	# Save number of cells per row
 
 	la	$a0, board_border	# Print top table row
@@ -95,7 +96,7 @@ print_board:
 	jal	print_string
 
 print_all_cells:
-	beq	$t0, $t1, bprint_done	# If 25 cells have been printed stop
+	beq	$t0, $t1, bprint_done	# If NUM_ROWS rows are printed stop
 
 print_row:				# Print each row
 	add	$t2, $0, $0		# Initialize row counter
@@ -111,7 +112,6 @@ print_cell:
 	la	$a0, cell_seperator	# Print cell seperator
 	jal	print_string
 
-	addi	$t0, $t0, 1		# Increment total cells printed
 	addi	$t2, $t2, 1		# Increment cells in row printed
 	j	print_cell		# Print another cell
 
@@ -120,8 +120,7 @@ print_row_end:
 	jal	print_string
 	la	$a0, row_border		# Print row delinator
 	jal	print_string
-
-print_all_cells_end:
+	addi	$t0, $t0, 1		# Increment number of rows printed
 	j	print_all_cells		# Loop back to top
 
 bprint_done:
