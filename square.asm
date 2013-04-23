@@ -48,7 +48,7 @@ o_prompt_start:
 	.asciiz "Player O"
 # The remainder of the input prompt
 prompt_text_remainder:
-	.asciiz "enter a move (-2 to quit, -1 to skip move): "
+	.asciiz " enter a move (-2 to quit, -1 to skip move): "
 
 #
 # CONSTANTS
@@ -160,19 +160,21 @@ print_prompt:
 	bgtz	$a0, prompt_o		# if a0 is 1 it's o's turn 		
 
 prompt_x:
-	lw	$a0, x_prompt_start		
+	la	$a0, x_prompt_start		
 	j	prompt_remainder	# Exit function
 
 prompt_o:
-	lw	$a0, o_prompt_start
+	la	$a0, o_prompt_start
 
 prompt_remainder:
 	jal	print_string
-	lw	$a0, prompt_text_remainder
+	la	$a0, prompt_text_remainder
+	jal	print_string
+	la	$a0, newline
 	jal	print_string
 
 print_prompt_done:
-	lw	$ra, 4($ra)		# Restore a0 and ra
+	lw	$ra, 4($sp)		# Restore a0 and ra
 	lw	$a0, 0($sp)
 	addi	$sp, $sp, 8		# Restore stack
 	jr	$ra			# Return
@@ -189,6 +191,7 @@ main:
 	add	$t0, $0, $0
 	addi	$t1, $0, 3
 	add	$t2, $0, $0
+	addi	$t3, $0, 1
 
 	la	$a0, intro_string	# Loads and prints intro string
 	jal	print_string
@@ -202,6 +205,7 @@ play:
 	
 	add	$a0, $0, $t2		# Print prompt for user turn
 	jal	print_prompt
+	xor	$t2, $t2, $t3
 	j play
 
 exit_program:
