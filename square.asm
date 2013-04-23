@@ -27,7 +27,7 @@ cell_seperator:
 	.asciiz	"|"
 # Right edge of the board
 cell_end:
-	.asciiz	"|*"
+	.asciiz	"*\n"
 # Proper amount of whitespace for top half of empty cells
 cell_blank:
 	.asciiz "   "
@@ -45,6 +45,10 @@ o_fill_row:
 # tells syscall what to do
 WRITE_STRING = 4
 EXIT_PROGRAM = 10
+
+# board info
+NUM_CELLS = 25
+CELLS_PER_ROW = 5
 
 #
 # CODE
@@ -66,20 +70,70 @@ print_string:
 # Prints board in accordance to the spec located at
 # http://www.cs.rit.edu/~vcss345/project/123/proj123.html
 #
+# Variables Used:
+#	$t0	Cell index counter
+#	$t1	Cell total comparator. Always equal to NUM_CELLS.
+#	$t2	Used to count index into row
+#	$t3	Row index comparator. Always equal to CELLS_PER_ROW.
+#
 
 print_board:
-	addi	$sp, $sp, -4		# Make room on stack to save ra
+	addi	$sp, $sp, -20		# Make room on stack to save ra
 	sw	$ra, 0($sp)		# Save return location
+	sw	$t0, 4($sp)		# Store register values used
+	sw	$t1, 8($sp)
+	sw	$t2, 12($sp)
+	sw	$t3, 16($sp)
 
-	la	$a0, board_border	# Print top border row
+	add	$t0, $0, $0		# Initialize cell index counter
+	addi	$t1, $0, NUM_CELLS	# Save num cell max
+	addi	$t3, $0, CELLS_PER_ROW	# Save number of cells per row
+
+	la	$a0, board_border	# Print top table row
+	jal	print_string
+	la	$a0, row_border		# Print first row border
 	jal	print_string
 
+print_all_cells:
+	beq	$t0, $t1, bprint_done	# If 25 cells have been printed stop
 
+print_row:				# Print each row
+	add	$t2, $0, $0		# Initialize row counter
+	la	$a0, cell_start		# Print row start
+	jal	print_string
+
+print_cell:
+	beq	$t2, $t3, print_row_end	# If CELLS_PER_ROW is met finish row
+
+	la	$a0, cell_blank		# Print whitespace
+	jal	print_string
+
+	la	$a0, cell_seperator	# Print cell seperator
+	jal	print_string
+
+	addi	$t0, $t0, 1		# Increment total cells printed
+	addi	$t2, $t2, 1		# Increment cells in row printed
+	j	print_cell		# Print another cell
+
+print_row_end:
+	la	$a0, cell_end		# Print row end + newline
+	jal	print_string
+	la	$a0, row_border		# Print row delinator
+	jal	print_string
+
+print_all_cells_end:
+	j	print_all_cells		# Loop back to top
+
+bprint_done:
 	la	$a0, board_border	# Print bottom border row
 	jal	print_string
 
+	lw	$t3, 16($sp)		# Restore registers
+	lw	$t2, 12($sp)
+	lw	$t1, 8($sp)
+	lw	$t0, 4($sp)
 	lw	$ra, 0($sp)		# Restore return location
-	addi	$sp, $sp, 4		# Restore stack
+	addi	$sp, $sp, 20		# Restore stack
 	jr	$ra			# Return
 
 #
