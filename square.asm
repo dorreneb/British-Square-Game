@@ -37,6 +37,18 @@ x_fill_row:
 # For filled cell rows marked by player 2
 o_fill_row:
 	.asciiz "OOO"
+# Newline
+newline:
+	.asciiz "\n"
+# The start of the input prompt when it's X's turn
+x_prompt_start:
+	.asciiz "Player X"
+# The start of the input prompt when it's O's turn
+o_prompt_start:
+	.asciiz "Player O"
+# The remainder of the input prompt
+prompt_text_remainder:
+	.asciiz "enter a move (-2 to quit, -1 to skip move): "
 
 #
 # CONSTANTS
@@ -136,13 +148,61 @@ bprint_done:
 	jr	$ra			# Return
 
 #
+# Prints the prompt that gets what the user wants to do
+#
+# Arguments:
+#	$a0	The player turn indicator (0 = X, 1 = 0)
+#
+print_prompt:
+	addi	$sp, $sp, -8		# Make room for $a0 on stack
+	sw	$a0, 0($sp)		# Save a0 and ra
+	sw	$ra, 4($sp)
+	bgtz	$a0, prompt_o		# if a0 is 1 it's o's turn 		
+
+prompt_x:
+	lw	$a0, x_prompt_start		
+	j	prompt_remainder	# Exit function
+
+prompt_o:
+	lw	$a0, o_prompt_start
+
+prompt_remainder:
+	jal	print_string
+	lw	$a0, prompt_text_remainder
+	jal	print_string
+
+print_prompt_done:
+	lw	$ra, 4($ra)		# Restore a0 and ra
+	lw	$a0, 0($sp)
+	addi	$sp, $sp, 8		# Restore stack
+	jr	$ra			# Return
+
+#
 # Main method. Runs program.
 #
+# Variables Used:
+#	$t0	Counter to print 3 boards
+#	$t1	Board max counter
+#	$t2	Turn counter (0 = X, 1 = 0)
+#
 main:
+	add	$t0, $0, $0
+	addi	$t1, $0, 3
+	add	$t2, $0, $0
+
 	la	$a0, intro_string	# Loads and prints intro string
 	jal	print_string
 
+play:
+	beq	$t0, $t1, exit_program
 	jal	print_board		# Print the board
+	addi	$t0, $t0, 1
+	la	$a0, newline		# Print a separating newline
+	jal	print_string
+	
+	add	$a0, $0, $t2		# Print prompt for user turn
+	jal	print_prompt
+	j play
 
 exit_program:
 	li	$v0, EXIT_PROGRAM	# Tells program to exit
