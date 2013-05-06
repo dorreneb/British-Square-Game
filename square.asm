@@ -178,14 +178,18 @@ print_row_top_end:
 	la	$a0, cell_end				# Print row end + newline
 	jal	print_string
 	add	$t2, $0, $0				# Initialize row counter for the bottom half of the rows
+	add	$t6, $t6, -20				# Roll back index by 5 to get bottom half of cells printed right
 
-print_row_bottom:					# Print each row
+print_row_bottom:					
 	la	$a0, cell_start			# Print row start
 	jal	print_string
 
 print_cell_bottom:
 	beq	$t2, $t3, print_row_bottom_end	# If CELLS_PER_ROW is met finish row
-	
+	lw	$a0, 0($t6)				# Get the contents of the cell's index to examine
+	beq	$a0, $0, print_bottom_x		# If contents = 0, print xs
+	bgt	$a0, $0, print_bottom_o		# If contents = 1, print os
+
 	mul	$a0, $t0, $t3				# Cell identifier = ([Completed Rows]*[Cells/row])+[Current row cell]
 	add	$a0, $a0, $t2	
 	jal	print_int				# Print cell
@@ -198,6 +202,14 @@ load_singledigit_space:
 
 load_doubledigit_space:
 	la	$a0, cell_blank_doubledigit		# Print top table row
+	j	continue_printing_cell
+
+print_bottom_x:
+	la	$a0, x_fill_row			# Print "XXX"
+	j	continue_printing_cell
+
+print_bottom_o:
+	la	$a0, o_fill_row			# Print "OOO"
 
 continue_printing_cell:
 	jal	print_string				# Print label whitespace
@@ -205,7 +217,9 @@ continue_printing_cell:
 	jal	print_string
 
 	addi	$t2, $t2, 1				# Increment cells in row printed
+	addi	$t6, $t6, 4				# Increment index in array
 	j	print_cell_bottom			# Print another cell
+
 
 print_row_bottom_end:
 	la	$a0, cell_end				# Print row end + newline
