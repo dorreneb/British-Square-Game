@@ -31,6 +31,12 @@ cell_end:
 # Proper amount of whitespace for top half of empty cells
 cell_blank:
 	.asciiz "   "
+# Proper amount of whitespace for bottom half of empty cells (n < 10)
+cell_blank_singledigit:
+	.asciiz "  "
+# Proper amount of whitespace for bottom half of empty cells (n > 9)
+cell_blank_doubledigit:
+	.asciiz " "
 # For filled cell rows marked by player 1
 x_fill_row:
 	.asciiz "XXX"
@@ -57,6 +63,7 @@ prompt_text_remainder:
 # tells syscall what to do
 WRITE_STRING = 4
 READ_INT = 5
+WRITE_INT = 1
 EXIT_PROGRAM = 10
 
 # board info
@@ -68,7 +75,7 @@ CELLS_PER_ROW = 5
 #
 	.text
 	.align	2
-	j	main			# Start program main method
+	j	main				# Start program main method
 
 #
 # Prints out a string, the pointer to which is saved in $a0.
@@ -76,9 +83,19 @@ CELLS_PER_ROW = 5
 # 	$a0:	A pointer to the string that should be printed.
 #
 print_string:
-	li	$v0, WRITE_STRING	# Tells system to write
+	li	$v0, WRITE_STRING		# Tells system to write
 	syscall				# Writes string
-	jr	$ra			# Return
+	jr	$ra				# Return
+
+#
+# Prints out a string, the pointer to which is saved in $a0.
+# Arguments:
+# 	$a0:	A pointer to the integer that should be printed.
+#
+print_int:
+	li	$v0, WRITE_INT		# Tells system to write
+	syscall				# Writes string
+	jr	$ra				# Return
 
 #
 # Prints board in accordance to the spec located at
@@ -89,6 +106,7 @@ print_string:
 #	$t1	Row total comparator. Always equal to NUM_ROWS.
 #	$t2	Used to count index into row
 #	$t3	Row index comparator. Always equal to CELLS_PER_ROW.
+#	$t4	Used to store '9' so we know whether to print single digit or double digit whitespace 
 #
 
 print_board:
@@ -98,6 +116,7 @@ print_board:
 	add	$t0, $0, $0				# Initialize row index counter
 	addi	$t1, $0, NUM_ROWS			# Save number of rows to print
 	addi	$t3, $0, CELLS_PER_ROW		# Save number of cells per row
+	addi	$t4, $0, 9				# Used to see if we should print one space or two spaces in row
 
 	la	$a0, board_border			# Print top table row
 	jal	print_string
@@ -136,9 +155,21 @@ print_row_bottom:					# Print each row
 print_cell_bottom:
 	beq	$t2, $t3, print_row_bottom_end	# If CELLS_PER_ROW is met finish row
 	
-	la	$a0, cell_blank			# Print whitespace
-	jal	print_string
+	mul	$a0, $t0, $t3				# Cell identifier = ([Completed Rows]*[Cells/row])+[Current row cell]
+	add	$a0, $a0, $t2	
+	jal	print_int				# Print cell
 
+	bgt	$a0, $t4, load_doubledigit_space	# If n > 9, print one space, otherwise print two spaces
+
+load_singledigit_space:
+	la	$a0, cell_blank_singledigit		# Print top table row
+	j	continue_printing_cell
+
+load_doubledigit_space:
+	la	$a0, cell_blank_doubledigit		# Print top table row
+
+continue_printing_cell:
+	jal	print_string				# Print label whitespace
 	la	$a0, cell_seperator			# Print cell seperator
 	jal	print_string
 
