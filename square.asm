@@ -92,12 +92,8 @@ print_string:
 #
 
 print_board:
-	addi	$sp, $sp, -20				# Make room on stack to save ra
+	addi	$sp, $sp, -4				# Make room on stack to save ra
 	sw	$ra, 0($sp)				# Save return location
-	sw	$t0, 4($sp)				# Store register values used
-	sw	$t1, 8($sp)
-	sw	$t2, 12($sp)
-	sw	$t3, 16($sp)
 
 	add	$t0, $0, $0				# Initialize row index counter
 	addi	$t1, $0, NUM_ROWS			# Save number of rows to print
@@ -161,12 +157,8 @@ bprint_done:
 	la	$a0, board_border	# Print bottom border row
 	jal	print_string
 
-	lw	$t3, 16($sp)		# Restore registers
-	lw	$t2, 12($sp)
-	lw	$t1, 8($sp)
-	lw	$t0, 4($sp)
 	lw	$ra, 0($sp)		# Restore return location
-	addi	$sp, $sp, 20		# Restore stack
+	addi	$sp, $sp, 4		# Restore stack
 	jr	$ra			# Return
 
 #
@@ -196,53 +188,53 @@ prompt_remainder:
 	jal	print_string
 
 print_prompt_done:
-	lw	$ra, 4($sp)		# Restore a0 and ra
+	lw	$ra, 4($sp)			# Restore a0 and ra
 	lw	$a0, 0($sp)
-	addi	$sp, $sp, 8		# Restore stack
-	jr	$ra			# Return
+	addi	$sp, $sp, 8			# Restore stack
+	jr	$ra				# Return
 
 #
 # Main method. Runs program.
 #
 # Variables Used:
-#	$t0	Counter to print 3 boards
-#	$t1	Board max counter
-#	$t2	Turn counter (0 = X, 1 = 0)
-#	$t3	Used to flip turn counter
-#	$t4	If input equals this, skip turn
-#	$t5	If input equals this, quit
+#	$s0	Counter to print 3 boards
+#	$s1	Board max counter
+#	$s2	Turn counter (0 = X, 1 = 0)
+#	$s3	Used to flip turn counter
+#	$s4	If input equals this, skip turn
+#	$s5	If input equals this, quit
 #
 main:
-	add	$t0, $0, $0
-	addi	$t1, $0, 3
-	add	$t2, $0, $0
-	addi	$t3, $0, 1
-	addi	$t4, $0, -1
-	addi	$t5, $0, -2
+	add	$s0, $0, $0
+	addi	$s1, $0, 3
+	add	$s2, $0, $0
+	addi	$s3, $0, 1
+	addi	$s4, $0, -1
+	addi	$s5, $0, -2
 
-	la	$a0, intro_string	# Loads and prints intro string
+	la	$a0, intro_string		# Loads and prints intro string
 	jal	print_string
 
 play:
-	jal	print_board		# Print the board
-	addi	$t0, $t0, 1
-	la	$a0, newline		# Print a separating newline
+	jal	print_board			# Print the board
+	addi	$s0, $s0, 1
+	la	$a0, newline			# Print a separating newline
 	jal	print_string
 	
-	add	$a0, $0, $t2		# Print prompt for user turn
+	add	$a0, $0, $s2			# Print prompt for user turn
 	jal	print_prompt
 
-	li	$v0, READ_INT		# Tells system to get user input
+	li	$v0, READ_INT			# Tells system to get user input
 	syscall				# Reads int into v0
 
-	beq	$v0, $t4, turn_over	# If input == -1 skip turn
-	beq	$v0, $t5, exit_program	# If input == -2 quit
+	beq	$v0, $s4, turn_over		# If input == -1 skip turn
+	beq	$v0, $s5, exit_program	# If input == -2 quit
 
 
 turn_over:
-	xor	$t2, $t2, $t3		# Change player turn
+	xor	$s2, $s2, $s3			# Change player turn
 	j play
 
 exit_program:
-	li	$v0, EXIT_PROGRAM	# Tells program to exit
+	li	$v0, EXIT_PROGRAM		# Tells program to exit
 	syscall				# Exit program
