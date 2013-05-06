@@ -92,49 +92,70 @@ print_string:
 #
 
 print_board:
-	addi	$sp, $sp, -20		# Make room on stack to save ra
-	sw	$ra, 0($sp)		# Save return location
-	sw	$t0, 4($sp)		# Store register values used
+	addi	$sp, $sp, -20				# Make room on stack to save ra
+	sw	$ra, 0($sp)				# Save return location
+	sw	$t0, 4($sp)				# Store register values used
 	sw	$t1, 8($sp)
 	sw	$t2, 12($sp)
 	sw	$t3, 16($sp)
 
-	add	$t0, $0, $0		# Initialize row index counter
-	addi	$t1, $0, NUM_ROWS	# Save number of rows to print
-	addi	$t3, $0, CELLS_PER_ROW	# Save number of cells per row
+	add	$t0, $0, $0				# Initialize row index counter
+	addi	$t1, $0, NUM_ROWS			# Save number of rows to print
+	addi	$t3, $0, CELLS_PER_ROW		# Save number of cells per row
 
-	la	$a0, board_border	# Print top table row
+	la	$a0, board_border			# Print top table row
 	jal	print_string
-	la	$a0, row_border		# Print first row border
+	la	$a0, row_border			# Print first row border
 	jal	print_string
 
 print_all_cells:
-	beq	$t0, $t1, bprint_done	# If NUM_ROWS rows are printed stop
+	beq	$t0, $t1, bprint_done		# If NUM_ROWS rows are printed stop
 
-print_row:				# Print each row
-	add	$t2, $0, $0		# Initialize row counter
-	la	$a0, cell_start		# Print row start
+print_row_top:					# Print each row
+	add	$t2, $0, $0				# Initialize row counter
+	la	$a0, cell_start			# Print row start
 	jal	print_string
 
-print_cell:
-	beq	$t2, $t3, print_row_end	# If CELLS_PER_ROW is met finish row
-
-	la	$a0, cell_blank		# Print whitespace
+print_cell_top:
+	beq	$t2, $t3, print_row_top_end		# If CELLS_PER_ROW is met finish row
+	
+	la	$a0, cell_blank			# Print whitespace
 	jal	print_string
 
-	la	$a0, cell_seperator	# Print cell seperator
+	la	$a0, cell_seperator			# Print cell seperator
 	jal	print_string
 
-	addi	$t2, $t2, 1		# Increment cells in row printed
-	j	print_cell		# Print another cell
+	addi	$t2, $t2, 1				# Increment cells in row printed
+	j	print_cell_top			# Print another cell
 
-print_row_end:
-	la	$a0, cell_end		# Print row end + newline
+print_row_top_end:
+	la	$a0, cell_end				# Print row end + newline
 	jal	print_string
-	la	$a0, row_border		# Print row delinator
+	add	$t2, $0, $0				# Initialize row counter for the bottom half of the rows
+
+print_row_bottom:					# Print each row
+	la	$a0, cell_start			# Print row start
 	jal	print_string
-	addi	$t0, $t0, 1		# Increment number of rows printed
-	j	print_all_cells		# Loop back to top
+
+print_cell_bottom:
+	beq	$t2, $t3, print_row_bottom_end	# If CELLS_PER_ROW is met finish row
+	
+	la	$a0, cell_blank			# Print whitespace
+	jal	print_string
+
+	la	$a0, cell_seperator			# Print cell seperator
+	jal	print_string
+
+	addi	$t2, $t2, 1				# Increment cells in row printed
+	j	print_cell_bottom			# Print another cell
+
+print_row_bottom_end:
+	la	$a0, cell_end				# Print row end + newline
+	jal	print_string
+	la	$a0, row_border			# Print row delinator
+	jal	print_string
+	addi	$t0, $t0, 1				# Increment number of rows printed
+	j	print_all_cells			# Loop back to top
 
 bprint_done:
 	la	$a0, board_border	# Print bottom border row
