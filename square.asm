@@ -65,6 +65,18 @@ o_prompt_start:
 # The remainder of the input prompt
 prompt_text_remainder:
 	.asciiz " enter a move (-2 to quit, -1 to skip move): "
+# Location makes no sense
+invalid_location_text:
+	.asciiz "Illegal location, try again\n\n"
+# Location is occupied
+occupied_location_text:
+	.asciiz "Illegal move, square is occupied\n\n"
+# Player X quit
+x_quit:
+	.asciiz "Player X quit the game.\n"
+# Player O quit
+o_quit:
+	.asciiz "Player O quit the game.\n"
 
 #
 # CONSTANTS
@@ -331,22 +343,39 @@ play:
 
 	beq	$v0, $s4, turn_over		# If input == -1 skip turn
 	beq	$v0, $s5, exit_program	# If input == -2 quit
-	bge	$v0, $s7, turn_over		# If input > the max square, skip turn
-	blt	$v0, $s5, turn_over		# If input < quit, it's invalid, skip turn
+	bge	$v0, $s7, illegal_loc	# If input > the max square, skip turn
+	blt	$v0, $s5, illegal_loc	# If input < quit, it's invalid, skip turn
 	
 	la	$t3, board			# Get index of square to place
 	addi 	$t4, $0, 4			# Multiplier to get to proper array index
 	mul	$t4, $t4, $v0			# Get relative location of index
 	add	$t3, $t3, $t4			# $t3 now has location in array to put things
 	lw	$t5, 0($t3)			# Check if a player has put something in the cell specified
-	bge	$t5, $0, turn_over		# If $t5 > 0, do not persist input
+	bge	$t5, $0, illegal_move	# If $t5 > 0, do not persist input
 	sw	$s2, 0($t3)			# Put player turn into the array
+	j	turn_over			# Complete turn
 
+illegal_loc:
+	la	$a0, invalid_location_text	# Tell user their choice isn't on the board
+	jal 	print_string
+	j	play
+
+illegal_move:
+	la	$a0, occupied_location_text	# Tell user their square has already been taken
+	jal	print_string
+	j 	play
 
 turn_over:
 	xor	$s2, $s2, $s3			# Change player turn
 	j play
 
 exit_program:
+	bgt	$s2, $0, say_o_quit		# print out who actually quit the game
+	la	$a0, x_quit	
+	j exit_process_call
+say_o_quit:
+	la	$a0, o_quit
+exit_process_call:
+	jal print_string
 	li	$v0, EXIT_PROGRAM		# Tells program to exit
 	syscall				# Exit program
