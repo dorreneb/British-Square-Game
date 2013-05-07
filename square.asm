@@ -11,10 +11,6 @@
 board:							# 25-element integer array that keeps track of stone placement
 	.space 100					# -1 = clear, 0 = X claim, 1 = O claim
 
-score:							# 2-element integer array that keeps track of stones placed on the board.
-	.space 8					# score[0] = X's claim, score[1] = O's claim
-
-
 #
 # STRINGS
 #
@@ -73,7 +69,18 @@ x_no_more_text:					# X has no more moves to make
 	.asciiz "Player X has no legal moves, turn skipped.\n\n"
 no_middle_first_text:				# Alert that you can't play on square 12 on the first turn
 	.asciiz "Illegal move, can't place first stone of game in middle square\n\n"
-
+player_x_won:						# Banner that says that x won
+	.ascii "************************\n"
+	.ascii "**   Player X wins!   **\n"
+	.asciiz "************************\n"
+player_o_won:						# Banner that says that o won
+	.ascii "************************\n"
+	.ascii "**   Player O wins!   **\n"
+	.asciiz "************************\n"
+game_tied:						# Banner that said the game is a tie
+	.ascii "************************\n"
+	.ascii "**   Game is a tie    **\n"
+	.asciiz "************************\n"
 #
 # CONSTANTS
 #
@@ -322,11 +329,6 @@ initialize_board:
 	addi	$t1, $t1, 4				# Go to next index in array
 	j	initialize_board			# Initialize next index in array
 
-	la	$t6, score				# Initialize points for players
-	sw	$0, 0($t6)
-	addi	$t6, $t6, 4
-	sw	$0, 0($t6)
-
 intro:
 	la	$a0, intro_string			# Loads and prints intro string
 	jal	print_string
@@ -335,6 +337,10 @@ intro:
 	jal	print_string
 
 play:
+	add	$v1, $0, $0				# Check if both players are capable of moving
+	jal	turn_to_take
+	bgt	$v1, $0, game_done			# If both players are blocked then quit
+
 	add	$v1, $0, $0				# Set default value to 0
 	jal	check_player_remaining_moves	# Check if the player can actually move
 	bne	$v1, $0, no_more_moves		# If the player is out of turns, skip
@@ -406,16 +412,43 @@ turn_over:
 
 	ori	$s1, $s1, 1				# Mark that the first turn has occurred
 
-	la	$t6, score				# Load score array
-	addi	$t4, $0, 4				# Get index for user that has received a point
-	mul	$t4,$t4, 1
-	add	$t6, $t6, $t4				# Point to score index for current player
-	lw	$t5, 0($t6)				# Get players current score
-	addi	$t5, $t5, 1				# Increment player score
-	sw	$t5, 0($t6)				# Save incremented player score
-
 	xor	$s2, $s2, $s3				# Change player turn by xoring player index with 1
 	j play						# Take next turn
+
+#
+# Checks if both players are able to move.
+#
+# Returns:
+# 	$v1	0 if either player is good to go, false otherwise
+#
+turn_to_take:
+	addi	$sp, $sp, -12
+	sw	$ra, 0($sp)
+	sw	$a0, 4($sp)
+	sw	$t0, 8($sp)
+
+	add	$a0, $0, $0				# Check first player's move state
+	jal	check_player_remaining_moves	
+	move	$t0, $v1				# Store result in t1
+	addi	$a0, $0, 1				# Check second player's move state
+	jal	check_player_remaining_moves
+	add	$t0, $t0, $v1				# If both results are 0, then we're good to go
+	
+	and	$t0, $t0, $v1				# If there are two false returns from 
+	addi	$v1, $0, 1				# Set default failure state
+	beq	$t0, $0, turn_to_take_true
+	j	turn_to_take_finish
+
+turn_to_take_true:
+	add	$v1, $0, $0
+
+turn_to_take_finish:
+	lw	$ra, 0($sp)
+	lw	$a0, 4($sp)
+	lw	$t0, 8($sp)
+	addi	$sp, $sp, 12
+	jr	$ra
+
 
 #
 # Checks to see if a specific player has the ability to move
@@ -438,8 +471,9 @@ check_player_remaining_loop:
 
 	lw	$t2, 0($t1)				# Load contents of cell
 	bge	$t2, $0, check_loop_increment	# If the cell is occupied, skip
-	j	check_valid_move			# Checks validity of movement	
-	beq	$v1, $0, player_has_moves		# If there is a valid move, we're good! Set to valid and return
+	j	player_has_moves
+	# j	check_valid_move			Checks validity of movement	
+	# beq	$v1, $0, player_has_moves		If there is a valid move, we're good! Set to valid and return
 
 check_loop_increment:
 	addi	$a0, $a0, 1				# Increment loop counter
@@ -535,6 +569,27 @@ check_valid_move_end:
 	jr	$ra
 
 #
+# Called when neither player can move.
+#
+game_done:
+	jal	print_scores				# Print scores and return winner
+	blt	$v1, $0, game_tie			# If $v1 < 0 then it was a tie
+	beq	$v1, $0, game_x_won			# If $v1 == 0 then it was x's game
+	la	$a0, player_o_won			# Otherwise o won
+	j 	game_done_print
+
+game_x_won:
+	la	$a0, player_x_won
+	j 	game_done_print
+
+game_tie:
+	la	$a0, game_tied
+
+game_done_print:
+	j	exit_process_call
+	
+
+#
 # Exits the program in after printing out game totals.
 #
 exit_program:	
@@ -544,6 +599,7 @@ exit_program:
 	j exit_process_call
 say_o_quit:
 	la	$a0, o_quit
+
 exit_process_call:
 	jal print_string
 	li	$v0, EXIT_PROGRAM			# Tells program to exit
@@ -551,6 +607,9 @@ exit_process_call:
 
 #
 # Prints scores that have been tracked over the course of the game
+#
+# Returns:
+#	$v1	Who won (0 for X, 1 for 0)
 #
 print_scores:
 	addi	$sp, $sp, -4				# Make room for $ra on stack
@@ -592,6 +651,19 @@ print_scores_loop_end:
 	la	$a0, newline				# Load and print a newline
 	jal	print_string
 
+	addi	$v1, $0, -1				# Default value - it was a tie
+	bgt	$t3, $t4, x_won			# If t3 > t4 then x won
+	bgt	$t4, $t3, o_won			# If t4 > t3 then o won
+	j print_scores_return
+
+x_won:
+	add	$v1, $0, $0 				# x won
+	j print_scores_return
+
+o_won:
+	addi	$v1, $0, 1				# Give o the win
+
+print_scores_return:
 	lw	$ra, 0($sp)				# Restore return location
 	addi	$sp, $sp, 4				# Restore stack pointer
 	jr	$ra					# Return
