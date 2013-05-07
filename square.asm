@@ -67,7 +67,12 @@ o_total:						# Label for o's score
 	.asciiz " O's total="
 blocked_square:					# If a player cant place a stone print this
 	.asciiz "Illegal move, square is blocked\n\n"
-
+o_no_more_text:					# O has no more moves to make
+	.asciiz "Player O has no legal moves, turn skipped.\n\n"
+x_no_more_text:					# X has no more moves to make
+	.asciiz "Player X has no legal moves, turn skipped.\n\n"
+no_middle_first_text:				# Alert that you can't play on square 12 on the first turn
+	.asciiz "Illegal move, can't place first stone of game in middle square\n\n"
 
 #
 # CONSTANTS
@@ -276,8 +281,8 @@ print_prompt_done:
 # Main method. Runs program.
 #
 # Variables Used:
-#	$s0	Counter to print 3 boards
-#	$s1	Board max counter
+#	$s0	12 - cannot be chosen the first time
+#	$s1	Saves if its the first turn or not
 #	$s2	Turn counter (0 = X, 1 = 0)
 #	$s3	Used to flip turn counter
 #	$s4	If input equals this, skip turn
@@ -295,8 +300,8 @@ print_prompt_done:
 #	$t6	Temp storage for player scores
 #
 main:
-	add	$s0, $0, $0
-	addi	$s1, $0, 3
+	addi	$s0, $0, 12
+	add	$s1, $0, $0
 	add	$s2, $0, $0
 	addi	$s3, $0, 1
 	addi	$s4, $0, -1
@@ -328,15 +333,22 @@ intro:
 	jal	print_board				# Print initial board
 	la	$a0, newline				# Print a separating newline
 	jal	print_string
-	jal print_scores
 
 play:
+	add	$v1, $0, $0				# Set default value to 0
+	jal	check_player_remaining_moves	# Check if the player can actually move
+	bne	$v1, $0, no_more_moves		# If the player is out of turns, skip
+
 	add	$a0, $0, $s2				# Print prompt for user turn
 	jal	print_prompt
 
 	li	$v0, READ_INT				# Tells system to get user input
 	syscall					# Reads int into v0
 
+	bne	$s1, $0, validations_on_all_turns	# If it's not the first turn, don't check for first input being 12
+	beq	$v0, $s0, not_middle_first		# Can't play in the middle square on the first turn
+		
+validations_on_all_turns:
 	beq	$v0, $s4, turn_over			# If input == -1 skip turn
 	beq	$v0, $s5, exit_program		# If input == -2 quit
 	bge	$v0, $s7, illegal_loc		# If input > the max square, skip turn
@@ -360,6 +372,22 @@ blocked:
 	jal	print_string
 	j 	play
 
+no_more_moves:
+	bne	$s2, $0, no_more_o
+	la	$a0, x_no_more_text
+	j	no_more_print
+no_more_o:
+	la	$a0, o_no_more_text
+no_more_print:
+	jal	print_string
+	xor	$s2, $s2, $s3				# Change player turn by xoring player index with 1
+	j	play	
+
+not_middle_first:
+	la	$a0, no_middle_first_text
+	jal	print_string
+	j	play
+
 illegal_loc:
 	la	$a0, invalid_location_text		# Tell user their choice isn't on the board
 	jal 	print_string
@@ -376,6 +404,8 @@ turn_over:
 	la	$a0, newline				# Print a separating newline
 	jal	print_string	
 
+	ori	$s1, $s1, 1				# Mark that the first turn has occurred
+
 	la	$t6, score				# Load score array
 	addi	$t4, $0, 4				# Get index for user that has received a point
 	mul	$t4,$t4, 1
@@ -383,11 +413,47 @@ turn_over:
 	lw	$t5, 0($t6)				# Get players current score
 	addi	$t5, $t5, 1				# Increment player score
 	sw	$t5, 0($t6)				# Save incremented player score
-	
-	jal	print_scores
 
 	xor	$s2, $s2, $s3				# Change player turn by xoring player index with 1
 	j play						# Take next turn
+
+#
+# Checks to see if a specific player has the ability to move
+# 
+# Returns:
+#	$v1	0 if player has remaining moves, 1 if player does not
+#
+check_player_remaining_moves:
+	addi	$sp, $sp, -8
+	sw	$ra, 0($sp)
+	sw	$a0, 4($sp)
+
+	addi	$v1, $0, 1				# Set default of "doesn't have moves"
+	add	$a0, $0, $0				# For loop counter/cell to check
+	addi	$t0, $0, 24				# Number of cells
+	la	$t1, board				# Board (to check if cell is blank)
+
+check_player_remaining_loop:
+	bgt	$a0, $t0, check_player_finish	# If index > 24 we've scanned the entire board
+
+	lw	$t2, 0($t1)				# Load contents of cell
+	bge	$t2, $0, check_loop_increment	# If the cell is occupied, skip
+	j	check_valid_move			# Checks validity of movement	
+	beq	$v1, $0, player_has_moves		# If there is a valid move, we're good! Set to valid and return
+
+check_loop_increment:
+	addi	$a0, $a0, 1				# Increment loop counter
+	addi	$t1, $t1, 4				# Increment cell pointer
+	j	check_player_remaining_loop
+
+player_has_moves:
+	add	$v1, $0, $0				# Set return variable to 'yes, has remaining moves'
+
+check_player_finish:
+	lw	$a0, 4($sp)				# Restore stack and return
+	lw	$ra, 0($sp)				
+	addi	$sp, $sp, 8
+	jr	$ra
 
 #
 # Checks if a square can be claimed by a player
@@ -468,6 +534,9 @@ check_invalid:
 check_valid_move_end:
 	jr	$ra
 
+#
+# Exits the program in after printing out game totals.
+#
 exit_program:	
 	jal 	print_scores				# Print out game totals
 	bgt	$s2, $0, say_o_quit			# print out who actually quit the game
@@ -480,21 +549,45 @@ exit_process_call:
 	li	$v0, EXIT_PROGRAM			# Tells program to exit
 	syscall					# Exit program
 
+#
+# Prints scores that have been tracked over the course of the game
+#
 print_scores:
 	addi	$sp, $sp, -4				# Make room for $ra on stack
 	sw	$ra, 0($sp)				# Temporarily store $ra
 	
-	la	$t0, score				# Load score array into register	
+	la	$t0, board				# Load board array into register	
+	add	$t1, $0, $0				# Initialize index
+	addi	$t2, $0, 24				# Max for loop
+	add	$t3, $0, $0				# Stores X's points
+	add	$t4, $0, $0				# Stores O's points
 
+print_scores_loop:
+	bgt	$t1, $t2, print_scores_loop_end	# If n > 24 we've finished the board
+	lw	$t5, 0($t0)				# Get contents of cell at this point
+	blt	$t5, $0, print_scores_loop_inc	# If the cell is unclaimed nobody gets points
+	bgt	$t5, $0, print_score_for_o		# If contents == 1 then o had the cell
+	addi	$t3, $t3, 1				# Give x the point
+	j	print_scores_loop_inc		# Don't assign both x and o a point for this cell
+	
+print_score_for_o:
+	addi	$t4, $t4, 1				# Increment o's score by 1
+
+print_scores_loop_inc:
+	addi	$t1, $t1, 1				# Increment loop index
+	addi	$t0, $t0, 4				# Increment pointer index
+	j print_scores_loop
+
+print_scores_loop_end:
 	la	$a0, game_totals			# Load and print game totals string
 	jal	print_string
 	la	$a0, x_total				# Load and print x's score
 	jal	print_string
-	la	$a0, 0($t0)
+	move	$a0, $t3
 	jal	print_int
 	la	$a0, o_total				# Load and print o's score
 	jal	print_string
-	la	$a0, 4($t0)
+	move	$a0, $t4
 	jal	print_int	
 	la	$a0, newline				# Load and print a newline
 	jal	print_string
