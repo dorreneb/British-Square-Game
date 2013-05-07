@@ -457,9 +457,10 @@ turn_to_take_finish:
 #	$v1	0 if player has remaining moves, 1 if player does not
 #
 check_player_remaining_moves:
-	addi	$sp, $sp, -8
+	addi	$sp, $sp, -12
 	sw	$ra, 0($sp)
 	sw	$a0, 4($sp)
+	sw	$v1, 8($sp)
 
 	addi	$v1, $0, 1				# Set default of "doesn't have moves"
 	add	$a0, $0, $0				# For loop counter/cell to check
@@ -484,9 +485,10 @@ player_has_moves:
 	add	$v1, $0, $0				# Set return variable to 'yes, has remaining moves'
 
 check_player_finish:
-	lw	$a0, 4($sp)				# Restore stack and return
+	lw	$v1, 8($sp)				# Restore stack and return
+	lw	$a0, 4($sp)	
 	lw	$ra, 0($sp)				
-	addi	$sp, $sp, 8
+	addi	$sp, $sp, 12
 	jr	$ra
 
 #
