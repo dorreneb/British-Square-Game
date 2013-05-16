@@ -470,11 +470,12 @@ check_player_remaining_moves:
 check_player_remaining_loop:
 	bgt	$a0, $t0, check_player_finish	# If index > 24 we've scanned the entire board
 
+	addi	$v1, $0, 1				# Default value of doesnt have moves
 	lw	$t2, 0($t1)				# Load contents of cell
 	bge	$t2, $0, check_loop_increment	# If the cell is occupied, skip
 	j	player_has_moves
-	# j	check_valid_move			Checks validity of movement	
-	# beq	$v1, $0, player_has_moves		If there is a valid move, we're good! Set to valid and return
+	jal	check_valid_move			# Checks validity of movement	
+	beq	$v1, $0, player_has_moves		# If there is a valid move, we're good! Set to valid and return
 
 check_loop_increment:
 	addi	$a0, $a0, 1				# Increment loop counter
@@ -546,7 +547,7 @@ check_square_south:
 check_square_east:
 	addi	$t4, $0, 5				# Divide $a0 by 5 to get the remainder in $HI
 	div	$a0, $t4					
-	mflo	$t4					# Get the remainder into $t4
+	mfhi	$t4					# Get the remainder into $t4
 	addi	$t4, $t4, -4				# Check if the remainder is 4, if so, its on the east edge - move on
 	beq	$t4, $0, check_square_west
 
@@ -556,7 +557,7 @@ check_square_east:
 check_square_west:
 	addi	$t4, $0, 5				# Divide $a0 by 5 to get the remainder in $HI
 	div	$a0, $t4					
-	mflo	$t4					# Get the remainder into $t4
+	mfhi	$t4					# Get the remainder into $t4
 	beq	$t4, $0, check_valid_move_end	# If no remainder then it's on the west end and we shouldn't check
 
 	lw	$t3, -4($t0)				# Get the next square
